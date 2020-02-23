@@ -1,0 +1,549 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#Pre Processing
+Load in packages and appropriate datasets.
+```{r}
+#Load in Packages
+library(readr)
+library(dplyr)
+
+#Load in Datasets
+train = read_csv("Downloads/drive-download-20200223T065323Z-001/training.csv")
+test = read_csv("Downloads/drive-download-20200223T065323Z-001/testing.csv")
+dem = read_csv("Downloads/zip9_demographics_coded_pv.csv")
+price = read_csv("Downloads/Sale_Prices_Zip.csv")
+zillow = read_csv("Downloads/Zip_Zhvi_AllHomes.csv")
+features = read_csv("Downloads/some_data_for_fan (5).csv",col_types = 'fddd')
+
+#Structure Zipcode to account for leading 0s
+test$zip5 = ifelse(nchar(as.character(test$zip5)) == 4, paste("0",as.character(test$zip5),sep = ""),as.character(test$zip5)) 
+features$zip5 = ifelse(nchar(as.character(features$zip5)) == 4, paste("0",as.character(features$zip5),sep = ""),as.character(features$zip5)) 
+```
+
+#Function Creation
+Create the necessary functions to speed up processes
+```{r}
+#Concatenate Regression and Binary
+concat = function(binary,regression){
+  if(class(binary) == "factor"){
+    binary = as.integer(binary) - 1
+  }
+  binary[binary == 1]=regression
+  return(binary)
+}
+
+#top to bottom approach
+pipe = function(prediction,first_timer_prediction, data,full){
+  zip_agg_result = data.frame(cbind(data$zip5,data$zip9_count,data$total_count,prediction,first_timer_prediction))
+  zip_agg_result = data.frame(lapply(zip_agg_result, function(x) as.double(as.character(x))))
+  zip_agg_result$V1 = data$zip5
+  comp = merge(zip_agg_result,full, by.x = "V1", by.y = "zip5",all.x = T)
+  comp$prop = (comp$household_count)/(comp$V3)
+  comp$final = comp$prop * (comp$prediction)
+  return(comp)
+}
+
+#Weighted Loss Function
+loss2 = function(pred,actual){
+  size = length(actual)
+  diff = pred - actual
+  
+  under = diff[diff<0]
+  over = diff[diff>=0]
+  
+  return((sum((under^2)*10) + sum(over^2))/size)
+}
+```
+
+#Dataset Generation
+Generate the datasets necessary to follow the top-down approach
+```{r}
+#Zip code based dataset
+by_zip_code = dem %>% group_by(zip5) %>% summarize(zip9_count = n(),
+                                                   total_count = sum(household_count),
+                                                   buyer_count = sum(homebuyers),
+                                                   first_count = sum(first_homebuyers)) 
+
+#Binary Variable and Feature Merge
+by_zip_code$bin = by_zip_code$buyer_count > 0
+by_zip_code_orig = merge(by_zip_code,features, by = "zip5",all.x = T)
+by_zip_code = na.omit(by_zip_code_orig)
+
+#Anti Sparsity
+table(by_zip_code$buyer_count > 0)/nrow(by_zip_code) 
+table(dem$homebuyers > 0)/nrow(dem)
+```
+
+```{r}
+#Train split etc/uses team mates training set to standardize
+by_zip_code_train = by_zip_code[!(by_zip_code$zip5 %in% test_code),]
+by_zip_code_test = by_zip_code[by_zip_code$zip5 %in% test_code,]
+
+val = sample(size = 1000,nrow(by_zip_code_train))
+by_zip_code_val = by_zip_code_train[val,]
+by_zip_code_train = by_zip_code_train[-val,]
+```
+
+#Model Creation
+Given the smaller dataset, I did most of the hyperparameter tuning by hand.
+
+Baseline Logistic
+```{r}
+log_mod = glm(bin~total_count + median_home_value + standardized_income + mean_age, data = by_zip_code_train,family = binomial())
+
+predictionbase = predict(log_mod, by_zip_code_train,type = "response")
+predictionbase1 = predict(log_mod, by_zip_code_val,type = "response")
+predictionbase2 = predict(log_mod, by_zip_code_test,type = "response")
+table(predictionbase > 0.5, by_zip_code_train$bin)/nrow(by_zip_code_train)
+table(predictionbase1 > 0.5, by_zip_code_val$bin)/nrow(by_zip_code_val)
+table(predictionbase2 > 0.5, by_zip_code_test$bin)
+```
+
+Baseline Linear Regression
+```{r}
+#regression
+by_zip_code_train_cont = by_zip_code_train[predictionbase > 0.5,]
+by_zip_code_val_cont = by_zip_code_val[predictionbase1 > 0.5,]
+by_zip_code_test_cont = by_zip_code_test[predictionbase2 > 0.5,]
+
+lmod = lm(buyer_count~total_count + median_home_value + standardized_income + mean_age, data = by_zip_code_train_cont)
+
+linear_regression1 = predict(lmod, by_zip_code_val_cont)
+linear_regression2 = predict(lmod, by_zip_code_test_cont)
+```
+
+Random Forest
+```{r}
+#binary
+mod = ranger::ranger(as.factor(bin)~total_count + median_home_value + standardized_income + mean_age, data = by_zip_code_train, mtry = 1,num.trees = 400)
+
+prediction = predict(mod, by_zip_code_train,type = "response")
+prediction1 = predict(mod, by_zip_code_val,type = "response")
+prediction2 = predict(mod, by_zip_code_test,type = "response")
+table(prediction$predictions, by_zip_code_train$bin)/nrow(by_zip_code_train)
+table(prediction1$predictions, by_zip_code_val$bin)/nrow(by_zip_code_val)
+table(prediction2$predictions, by_zip_code_test$bin)
+```
+
+```{r}
+#regression
+by_zip_code_train_cont = by_zip_code_train[prediction$predictions == T,]
+by_zip_code_val_cont = by_zip_code_val[prediction1$predictions == T,]
+by_zip_code_test_cont = by_zip_code_test[prediction2$predictions == T,]
+
+mod1 = ranger::ranger(buyer_count~total_count + median_home_value + standardized_income + mean_age, data = by_zip_code_train_cont,mtry = 1,num.trees = 400)
+
+regression = predict(mod1, by_zip_code_train_cont)
+regression1 = predict(mod1, by_zip_code_val_cont)
+regression2 = predict(mod1, by_zip_code_test_cont)
+```
+
+XGBoost
+```{r}
+X = model.matrix(bin~total_count + median_home_value + standardized_income + mean_age,
+                data = by_zip_code_train)[,-1]
+y = as.matrix(as.numeric(by_zip_code_train$bin))
+
+modx = xgboost::xgboost(data = X,label=y, eta = 0.1,
+ max_depth = 15, 
+ nround=70, 
+ subsample = 0.5,
+ colsample_bytree = 0.5,
+ seed = 1,
+ num_class = 2,
+ nthread = 3)
+
+Xval = model.matrix(bin~total_count + median_home_value + standardized_income + mean_age,
+                data = by_zip_code_val)[,-1]
+Xtest = model.matrix(bin~total_count + median_home_value + standardized_income + mean_age,
+                data = by_zip_code_test)[,-1]
+
+predictionx = predict(modx, X)
+predictionx1 = predict(modx, Xval)
+predictionx2 = predict(modx, Xtest)
+table(predictionx, by_zip_code_train$bin)/nrow(by_zip_code_train)
+table(predictionx1, by_zip_code_val$bin)/nrow(by_zip_code_val)
+table(predictionx2, by_zip_code_test$bin)
+```
+
+```{r}
+by_zip_code_train_cont = by_zip_code_train[predictionx == 1,]
+by_zip_code_val_cont = by_zip_code_val[predictionx1 == 1,]
+by_zip_code_test_cont = by_zip_code_test[predictionx2 == 1,]
+
+
+Xx = model.matrix(buyer_count~total_count + median_home_value + standardized_income + mean_age,
+                data = by_zip_code_train_cont)[,-1]
+yy = by_zip_code_train_cont$buyer_count
+
+modxx = xgboost::xgboost(data = Xx,label=yy, eta = 0.1,
+ max_depth = 15, 
+ nround=70, 
+ subsample = 0.5,
+ colsample_bytree = 0.5,
+ seed = 1,
+ nthread = 3)
+
+Xxval = model.matrix(buyer_count~total_count + median_home_value + standardized_income + mean_age,
+                data = by_zip_code_val_cont)[,-1]
+Xxtest = model.matrix(buyer_count~total_count + median_home_value + standardized_income + mean_age,
+                data = by_zip_code_test_cont)[,-1]
+
+regressionx = predict(modxx, Xx)
+regressionx1 = predict(modxx, Xxval)
+regressionx2 = predict(modxx, Xxtest)
+```
+
+```{r}
+#lm
+final_val_l = concat(as.numeric(predictionbase1 > 0.5),linear_regression1)
+final_test_l = concat(as.numeric(predictionbase2 > 0.5),linear_regression2)
+
+#rf
+final_train_rf = concat(prediction$predictions,regression$predictions)
+final_val_rf = concat(prediction1$predictions,regression1$predictions)
+final_test_rf = concat(prediction2$predictions,regression2$predictions)
+
+#xgb
+final_val_xgb = concat(predictionx1,regressionx1)
+final_test_xgb = concat(predictionx2,regressionx2)
+```
+
+#Evaludation
+
+Validation Set Evaluation: Non zero household
+```{r}
+data = by_zip_code_val
+result = final_val_rf
+
+sqrt(mean((mean(data$buyer_count[data$buyer_count>0]) - data$buyer_count[data$buyer_count>0])^2))
+sqrt(mean((0 - data$buyer_count[data$buyer_count>0])^2))
+sqrt(mean((result[data$buyer_count>0] - data$buyer_count[data$buyer_count>0])^2))
+
+mean(abs(mean(data$buyer_count[data$buyer_count>0]) - data$buyer_count[data$buyer_count>0]))
+mean(abs(0 - data$buyer_count[data$buyer_count>0]))
+mean(abs(result[data$buyer_count>0] - data$buyer_count[data$buyer_count>0]))
+
+sqrt(median((mean(data$buyer_count[data$buyer_count>0]) - data$buyer_count[data$buyer_count>0])^2))
+sqrt(median((0 - data$buyer_count[data$buyer_count>0])^2))
+sqrt(median((result[data$buyer_count>0] - data$buyer_count[data$buyer_count>0])^2))
+
+loss2(0, data$buyer_count)
+loss2(result, data$buyer_count)
+```
+
+Validation Set Evaluation: Overall
+```{r}
+data = by_zip_code_val
+result = final_val_rf
+
+sqrt(mean((median(data$buyer_count) - data$buyer_count)^2))
+sqrt(mean((0 - data$buyer_count)^2))
+sqrt(mean((result - data$buyer_count)^2))
+
+mean(abs(median(data$buyer_count) - data$buyer_count))
+mean(abs(0 - data$buyer_count))
+mean(abs(result - data$buyer_count))
+
+sqrt(median((median(data$buyer_count) - data$buyer_count)^2))
+sqrt(median((0 - data$buyer_count)^2))
+sqrt(median((result - data$buyer_count)^2))
+
+loss2(0, data$buyer_count)
+loss2(result, data$buyer_count)
+```
+
+Test Set Evaluation
+```{r}
+data = by_zip_code_test
+result = final_test_rf
+
+sqrt(mean((mean(data$buyer_count) - data$buyer_count)^2))
+sqrt(mean((0 - data$buyer_count)^2))
+sqrt(mean((result - data$buyer_count)^2))
+
+mean(abs(mean(data$buyer_count) - data$buyer_count))
+mean(abs(0 - data$buyer_count))
+mean(abs(result - data$buyer_count))
+
+loss2(mean(data$buyer_count), data$buyer_count)
+loss2(result, data$buyer_count)
+```
+
+#Extention Model
+```{r}
+#Building First Timers Count as an extention of the total count
+by_zip_code_train_cont$full_pred = by_zip_code_train_cont$buyer_count
+first_count_model = lm(first_count~full_pred+total_count + standardized_income + mean_age, data = by_zip_code_train_cont[by_zip_code_train_cont$buyer_count > 0,])
+```
+
+#Prediction
+```{r}
+by_zip_code_train_cont$full_pred = regression$predictions
+by_zip_code_val_cont$full_pred = regression1$predictions
+by_zip_code_test_cont$full_pred = regression2$predictions
+first_count_train = predict(first_count_model,by_zip_code_train_cont)
+first_count_val = predict(first_count_model,by_zip_code_val_cont)
+first_count_test = predict(first_count_model,by_zip_code_test_cont)
+
+#first time
+final_train_first = concat(prediction$predictions,first_count_train)
+final_val_first = concat(prediction1$predictions,first_count_val)
+final_test_first = concat(prediction2$predictions,first_count_test)
+```
+
+#First Time Buyer Validation Evaluation
+```{r}
+data = by_zip_code_val
+result = final_val_first
+
+sqrt(mean((median(data$first_count) - data$first_count)^2))
+sqrt(mean((0 - data$first_count)^2))
+sqrt(mean((result - data$first_count)^2))
+
+mean(abs(median(data$first_count) - data$first_count))
+mean(abs(0 - data$first_count))
+mean(abs(result - data$first_count))
+
+sqrt(median((median(data$first_count) - data$first_count)^2))
+sqrt(median((0 - data$first_count)^2))
+sqrt(median((result - data$first_count)^2))
+
+loss2(0, data$first_count)
+loss2(result, data$first_count)
+```
+
+#First Time Buyer Test Evaluation
+```{r}
+data = by_zip_code_test
+result = final_test_first
+
+sqrt(mean((mean(data$first_count) - data$first_count)^2))
+sqrt(mean((0 - data$first_count)^2))
+sqrt(mean((result - data$first_count)^2))
+
+mean(abs(mean(data$first_count) - data$first_count))
+mean(abs(0 - data$first_count))
+mean(abs(result - data$first_count))
+
+sqrt(median((mean(data$first_count) - data$first_count)^2))
+sqrt(median((0 - data$first_count)^2))
+sqrt(median((result - data$first_count)^2))
+
+loss2(0, data$first_count)
+loss2(result, data$first_count)
+```
+
+#Basic Proportion Set up to create prediction on zip9 level
+
+Validation
+```{r}
+frame = pipe(final_val_rf,final_val_first,by_zip_code_val,dem)
+
+sum(0 == frame$homebuyers)/nrow(frame)
+sum(round(frame$final) == frame$homebuyers)/nrow(frame)
+
+loss2(0,frame$homebuyers)
+loss2(round(frame$final),frame$homebuyers)
+loss2(frame$final,frame$homebuyers)
+```
+
+Test
+```{r}
+frame = pipe(final_val_rf,final_val_first,by_zip_code_val,dem)
+
+sum(0 == frame$homebuyers)/nrow(frame)
+sum(round(frame$final) == frame$homebuyers)/nrow(frame)
+
+loss2(0,frame$homebuyers)
+loss2(round(frame$final),frame$homebuyers)
+loss2(frame$final,frame$homebuyers)
+
+sqrt(mean((0 - frame$homebuyers)^2))
+sqrt(mean((frame$final - frame$homebuyers)^2))
+
+mean(abs(0 - frame$homebuyers))
+mean(abs(frame$final - frame$homebuyers))
+
+sqrt(mean((0 - frame$first_homebuyers)^2))
+sqrt(mean((frame$prop * frame$first_timer_prediction - frame$first_homebuyers)^2))
+
+mean(abs((0 - frame$first_homebuyers)))
+mean(abs((frame$prop * frame$first_timer_prediction - frame$first_homebuyers)))
+```
+
+#Feed the test final prediction for allocation modelling
+```{r}
+test_fin = frame %>% select(V1,prediction,first_timer_prediction,zip9_code)
+colnames(test_fin) = c("zip5","prediction","first_timer_prediction","zip9_code")
+write.csv(test_fin,"test_predicted.csv")
+```
+
+Below are just me trying out different ways to potentially improve allocation
+```{r}
+dem_mod = dem %>% group_by(zip5) %>% mutate(zip9_count = n(),
+                                                   total_count = sum(household_count),
+                                                   buyer_count = sum(homebuyers),
+                                                   first_count = sum(first_homebuyers)) 
+
+library(mgcv)
+dem_mod$prop = dem_mod$household_count/dem_mod$total_count
+homebuyer_dependence = gam(homebuyers~s(prop) + s(buyer_count) + s(total_count) + s(age), data = dem_mod)
+```
+
+```{r}
+dem_mod$prediction = predict(homebuyer_dependence,dem_mod)
+dem_mod = dem_mod %>% group_by(zip5) %>% mutate(normalized = (prediction/sum(prediction)) * buyer_count)
+```
+
+```{r}
+dem_mod = dem_mod %>% mutate(uniform_method = buyer_count/zip9_count)
+
+cor(dem_mod$normalized,dem_mod$homebuyers)
+cor(dem_mod$prediction,dem_mod$homebuyers)
+cor(dem_mod$uniform_method,dem_mod$homebuyers)
+```
+
+```{r}
+dem_mod = dem_mod %>% mutate(p = buyer_count/total_count)
+dem_mod = dem_mod %>% mutate(rand = (rbinom(1,size = household_count,prob = round(prediction)/household_count)))
+dem_mod
+```
+
+```{r}
+sum(0 == dem_mod$homebuyers)/nrow(dem_mod)
+sum(round(dem_mod$normalized) == dem_mod$homebuyers)/nrow(dem_mod)
+sum(round(dem_mod$rand) == dem_mod$homebuyers)/nrow(dem_mod)
+
+loss2(0,dem_mod$homebuyers)
+loss2(round(dem_mod$normalized),dem_mod$homebuyers)
+loss2(dem_mod$normalized,dem_mod$homebuyers)
+loss2(dem_mod$prediction,dem_mod$homebuyers)
+loss2(dem_mod$rand,dem_mod$homebuyers)
+loss2(dem_mod$uniform_method,dem_mod$homebuyers)
+```
+
+
+
+```{r}
+dem[dem$zip9_code == 6507244,]
+by_zip_code_train[by_zip_code_train$zip5 == 57186,]
+```
+
+```{r}
+cor(by_zip_code_train$first_count,by_zip_code_train$buyer_count)
+#First count as a function of total count
+plot(by_zip_code_train$first_count,by_zip_code_train$buyer_count)
+```
+
+```{r}
+frame = pipe(final_test_rf,final_test_first,by_zip_code_test,dem)
+test_set_fin = frame %>% select(V1,prediction,first_timer_prediction,zip9_code,homebuyers, first_homebuyers)
+
+length(unique(test_set_fin$V1))
+```
+
+#Allocation
+```{r}
+test_probs = read_csv("Downloads/rf (1).csv")
+test_code = unique(test_probs$zip5)
+```
+
+```{r}
+length(unique(test_probs$zip5))
+```
+
+```{r}
+test_filled = merge(test_probs,test_set_fin,by.x = "zip9", by.y = "zip9_code")
+```
+
+```{r}
+test_filled$`proportion of buyers` = test_filled$`proportion of buyers` - min(test_filled$`proportion of buyers`)
+test_filled$`proportion of first time buyers` = test_filled$`proportion of first time buyers` - min(test_filled$`proportion of first time buyers`)
+```
+
+```{r}
+test_filled %>% group_by(zip5) %>% summarise(sum(`proportion of buyers`)) %>% summarize_all(max)
+```
+
+
+```{r}
+test_filled$pred_reg = test_filled$`proportion of buyers` * 0.14 * test_filled$prediction
+test_filled$pred_first = test_filled$`proportion of first time buyers`* 0.14 * test_filled$first_timer_prediction
+```
+
+
+```{r}
+loss2(0,test_filled$homebuyers)
+loss2(test_filled$pred_reg,test_filled$homebuyers)
+```
+
+```{r}
+mean(abs(0-test_filled$homebuyers))
+mean(abs(test_filled$pred_reg-test_filled$homebuyers))
+
+mean(abs(0-test_filled$first_homebuyers))
+mean(abs(test_filled$pred_first-test_filled$first_homebuyers))
+
+sqrt(mean((0-test_filled$homebuyers)^2))
+sqrt(mean((test_filled$pred_reg-test_filled$homebuyers)^2))
+
+sqrt(mean((0-test_filled$first_homebuyers)^2))
+sqrt(mean((test_filled$pred_first-test_filled$first_homebuyers)^2))
+```
+
+```{r}
+real_test_set = read_csv("Downloads/zip9_demographics_unlabeled_wh_test.csv")
+```
+```{r}
+kai = read_csv("Downloads/test-data (1).csv")
+kai$zip5 = ifelse(nchar(as.character(kai$zip5)) == 4, paste("0",as.character(kai$zip5),sep = ""),as.character(kai$zip5)) 
+colnames(kai) = c(colnames(kai)[1:5],"total_count")
+```
+
+```{r}
+pred_test = predict(mod,kai)
+
+kai_small = kai[pred_test$predictions == T,]
+
+pred_test2 = predict(mod1,kai_small)
+
+fin_res = concat(pred_test$predictions,pred_test2$predictions)
+
+kai$zip5_pred = fin_res
+
+kai$full_pred = kai$zip5_pred
+first_count = predict(first_count_model,kai)
+kai$first_count = first_count
+
+test_zip9_agg = kai %>% select(zip9,zip5_pred,first_count)
+write.csv(test_zip9_agg,"agg.csv")
+```
+
+```{r}
+kai[order(kai$zip5),][140000:150000,]
+```
+
+```{r}
+result = read_csv("Downloads/result 2.csv")
+```
+
+```{r}
+full = merge(test_zip9_agg, result, by.x = "zip9",by.y = "zip9")
+```
+
+```{r}
+full$`proportion of buyers` = full$`proportion of buyers` - min(full$`proportion of buyers`)
+full$`proportion of first time buyers` = full$`proportion of first time buyers` - min(full$`proportion of first time buyers`)
+```
+
+```{r}
+full$overall_pred = full$`proportion of buyers` * 0.14 * full$prediction
+full$overall_first = full$`proportion of first time buyers`* 0.14 * full$first_timer_prediction
+
+final = full %>% select(zip9,overall_pred,overall_first)
+write.csv(final,"final.csv")
+```
