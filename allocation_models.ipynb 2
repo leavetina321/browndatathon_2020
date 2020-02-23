@@ -1,0 +1,1842 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.7.1"
+    },
+    "colab": {
+      "name": "allocation_models.ipynb",
+      "provenance": [],
+      "collapsed_sections": [],
+      "machine_shape": "hm"
+    },
+    "accelerator": "GPU"
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "BCEa7lYs_qzW",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Note: be sure to add the folder Brown-Datathon-Public-2020 to your drive (you can do this using the dropdown arrow next to the folder in the path header in drive) before running this notebook.**"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "sBhILwwD2mdg",
+        "colab_type": "text"
+      },
+      "source": [
+        "## Presets"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "244mQVeY2mdl",
+        "colab_type": "code",
+        "outputId": "b6f8c143-b4be-4c1f-eb4c-33bb9a68645a",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 836
+        }
+      },
+      "source": [
+        "# Make necessary/useful imports here\n",
+        "import pandas as pd\n",
+        "import random\n",
+        "import numpy as np\n",
+        "import datetime as dt\n",
+        "import matplotlib.pyplot as plt\n",
+        "import matplotlib.cm\n",
+        "from sklearn import metrics\n",
+        "from sklearn.linear_model import LogisticRegression\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.metrics import confusion_matrix\n",
+        "\n",
+        "# Set pandas options to not truncate\n",
+        "pd.set_option('display.max_rows', None)\n",
+        "pd.set_option('display.max_columns', None)\n",
+        "pd.set_option('display.width', None)\n",
+        "pd.set_option('display.max_colwidth', -1)\n",
+        "\n",
+        "# # Do not mount data!! \n",
+        "# #from google.colab import drive\n",
+        "# #drive.mount(\"/content/gdrive\", force_remount=True)\n",
+        "# # Instead, download and unzip data\n",
+        "!wget https://datathon2020.s3.amazonaws.com/datasets/citizens-home-financing-challenge.zip\n",
+        "!unzip citizens-home-financing-challenge.zip \n",
+        "\n"
+      ],
+      "execution_count": 53,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "--2020-02-23 16:18:17--  https://datathon2020.s3.amazonaws.com/datasets/citizens-home-financing-challenge.zip\n",
+            "Resolving datathon2020.s3.amazonaws.com (datathon2020.s3.amazonaws.com)... 52.216.89.35\n",
+            "Connecting to datathon2020.s3.amazonaws.com (datathon2020.s3.amazonaws.com)|52.216.89.35|:443... connected.\n",
+            "HTTP request sent, awaiting response... 200 OK\n",
+            "Length: 2972199826 (2.8G) [application/zip]\n",
+            "Saving to: ‘citizens-home-financing-challenge.zip.1’\n",
+            "\n",
+            "citizens-home-finan 100%[===================>]   2.77G  39.5MB/s    in 42s     \n",
+            "\n",
+            "2020-02-23 16:19:00 (67.2 MB/s) - ‘citizens-home-financing-challenge.zip.1’ saved [2972199826/2972199826]\n",
+            "\n",
+            "Archive:  citizens-home-financing-challenge.zip\n",
+            "replace citizens-home-financing-challenge/dictionaries/datathon_summary.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename: y\n",
+            "  inflating: citizens-home-financing-challenge/dictionaries/datathon_summary.csv  \n",
+            "replace citizens-home-financing-challenge/dictionaries/zip9_coded_20190X_dict.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename: y\n",
+            "  inflating: citizens-home-financing-challenge/dictionaries/zip9_coded_20190X_dict.csv  \n",
+            "replace citizens-home-financing-challenge/dictionaries/zip9_demographics_coded_dict.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename: y\n",
+            "  inflating: citizens-home-financing-challenge/dictionaries/zip9_demographics_coded_dict.csv  \n",
+            "replace citizens-home-financing-challenge/zip9_coded_201908_pv.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename: y\n",
+            "  inflating: citizens-home-financing-challenge/zip9_coded_201908_pv.csv  y\n",
+            "y\n",
+            "y\n",
+            "\n",
+            "replace citizens-home-financing-challenge/zip9_coded_201907_pv.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename:   inflating: citizens-home-financing-challenge/zip9_coded_201907_pv.csv  y\n",
+            "y\n",
+            "y\n",
+            "y\n",
+            "\n",
+            "replace citizens-home-financing-challenge/zip9_coded_201906_pv.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename:   inflating: citizens-home-financing-challenge/zip9_coded_201906_pv.csv  y\n",
+            "y\n",
+            "\n",
+            "replace citizens-home-financing-challenge/DatathonDictionaries.xlsx? [y]es, [n]o, [A]ll, [N]one, [r]ename:   inflating: citizens-home-financing-challenge/DatathonDictionaries.xlsx  \n",
+            "replace citizens-home-financing-challenge/zip9_coded_201909_pv.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename:   inflating: citizens-home-financing-challenge/zip9_coded_201909_pv.csv  y\n",
+            "y\n",
+            "y\n",
+            "y\n",
+            "\n",
+            "replace citizens-home-financing-challenge/zip9_demographics_coded_pv.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename:   inflating: citizens-home-financing-challenge/zip9_demographics_coded_pv.csv  y\n",
+            "y\n",
+            "\n",
+            "replace citizens-home-financing-challenge/zip9_coded_201905_pv.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename:   inflating: citizens-home-financing-challenge/zip9_coded_201905_pv.csv  y\n",
+            "y\n",
+            "y\n",
+            "\n",
+            "replace citizens-home-financing-challenge/zip9_coded_201904_pv.csv? [y]es, [n]o, [A]ll, [N]one, [r]ename:   inflating: citizens-home-financing-challenge/zip9_coded_201904_pv.csv  y\n",
+            "y\n",
+            "\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "gkMy4n9hVaJ9",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "import numpy as np\n",
+        "from sklearn.model_selection import GridSearchCV\n",
+        "from sklearn.pipeline import make_pipeline\n",
+        "from sklearn.metrics import make_scorer\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.model_selection import KFold\n",
+        "from sklearn.preprocessing import StandardScaler\n",
+        "from sklearn.linear_model import Ridge\n",
+        "from sklearn.metrics import mean_squared_error\n",
+        "import pandas as pd\n",
+        "import matplotlib.pyplot as plt\n",
+        "from sklearn.preprocessing import LabelEncoder\n",
+        "from sklearn.preprocessing import OrdinalEncoder\n",
+        "from sklearn.preprocessing import OneHotEncoder\n",
+        "from sklearn.preprocessing import MinMaxScaler\n",
+        "from sklearn.preprocessing import StandardScaler\n",
+        "le = LabelEncoder()\n",
+        "ohe = OneHotEncoder(sparse=False, handle_unknown = 'ignore')\n",
+        "mmscaler = MinMaxScaler()\n",
+        "sscaler = StandardScaler()\n",
+        "import seaborn as sns\n",
+        "import warnings\n",
+        "warnings.filterwarnings(\"ignore\")\n",
+        "from matplotlib import pyplot as plt"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "1WSREovCXbeF",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.model_selection import StratifiedKFold\n",
+        "from sklearn.ensemble import RandomForestRegressor\n",
+        "from sklearn.metrics import f1_score, accuracy_score, roc_curve, auc\n",
+        "from sklearn.feature_selection import RFE # for feature reduction\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.model_selection import StratifiedKFold"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "01sbEBit2mdr",
+        "colab_type": "text"
+      },
+      "source": [
+        "## Data Dictionaries"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "svimTQAv2md_",
+        "colab_type": "text"
+      },
+      "source": [
+        "## Looking at Data Samples"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "scrolled": false,
+        "id": "7LZ3Aal02meA",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "n = 6009259 # number of records in file\n",
+        "s = 756666 # sample size (can/should be changed to your preference)\n",
+        "\n",
+        "root_path = 'citizens-home-financing-challenge/'\n",
+        "\n",
+        "skip_list = sorted(random.sample(range(1,n+1),n-s))\n",
+        "apr_df = pd.read_csv(root_path + \"zip9_coded_201904_pv.csv\", skiprows=skip_list, dtype={'zip5': str})\n",
+        "may_df = pd.read_csv(root_path + \"zip9_coded_201905_pv.csv\", skiprows=skip_list, dtype={'zip5': str})\n",
+        "jun_df = pd.read_csv(root_path + \"zip9_coded_201906_pv.csv\", skiprows=skip_list, dtype={'zip5': str})\n",
+        "jul_df = pd.read_csv(root_path + \"zip9_coded_201907_pv.csv\", skiprows=skip_list, dtype={'zip5': str})\n",
+        "aug_df = pd.read_csv(root_path + \"zip9_coded_201908_pv.csv\", skiprows=skip_list, dtype={'zip5': str})\n",
+        "sep_df = pd.read_csv(root_path + \"zip9_coded_201909_pv.csv\", skiprows=skip_list, dtype={'zip5': str})\n",
+        "demo_df = pd.read_csv(root_path + \"zip9_demographics_coded_pv.csv\", skiprows=skip_list, dtype={'zip5': str})"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "HNTn5QULXPfD",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "## Count non-missing\n",
+        "def count_nonmissing(data, column_list, new_column):  \n",
+        "  result = np.zeros(data.shape[0])  \n",
+        "  for col_name in column_list:\n",
+        "    i = 0\n",
+        "    for BOOLEAN in pd.notnull(data[col_name]):\n",
+        "      if BOOLEAN:\n",
+        "        result[i] += 1\n",
+        "        i += 1  \n",
+        "  data[new_column] = result"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ZZI0LPYaXpJK",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "def create_variables(data,column_list_1, new_column_1,column_list_2, new_column_2, all_column):  \n",
+        "  data = data.copy()\n",
+        "  count_nonmissing(data,column_list_1, new_column_1)  \n",
+        "  count_nonmissing(data,column_list_2, new_column_2)  \n",
+        "  data['mean_mortgage_balance']=data['total_mortgage_balance']/data['mortgage_count']  \n",
+        "  data['mean_mortgage_limit']=data['total_mortgage_limit']/data['mortgage_count']  \n",
+        "  data['mean_mortgage_trades']=data['total_mortgage_trades']/data['mortgage_count']  \n",
+        "  data['mean_homeequity_balance']=data['total_homeequity_balance']/data['homeequity_count']  \n",
+        "  data['mean_homeequity_limit']=data['total_homeequity_limit']/data['homeequity_count']  \n",
+        "  data['mean_homeequity_trades']=data['total_homeequity_trades']/data['homeequity_count']  \n",
+        "  data=data[all_column]\n",
+        "  data = data.replace([np.inf, -np.inf], np.nan)\n",
+        "  data = data.fillna(0)\n",
+        "  \n",
+        "  return data"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "GwI3gYrtXzKZ",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "column_list_1=['mortgage1_limit','mortgage2_limit', 'mortgage3_limit','mortgage4_limit','mortgage5_limit']\n",
+        "column_list_2=['homeequity1_limit','homeequity2_limit','homeequity3_limit','homeequity4_limit','homeequity5_limit']\n",
+        "all_column=['zip5', 'zip9_code', 'bankcard_limit', 'bankcard_balance',      \n",
+        "            'bankcard_trades', 'bankcard_util', 'total_revolving_limit',     \n",
+        "            'total_revolving_balance', 'total_revolving_trades',     \n",
+        "            'total_revolving_util','total_mortgage_limit', 'total_mortgage_balance',      \n",
+        "            'total_mortgage_trades', 'mortgage1_loan_to_value', 'total_homeequity_limit',     \n",
+        "            'total_homeequity_balance', 'total_homeequity_trades',      \n",
+        "            'homeequity1_loan_to_value', 'autoloan_open', 'studentloan_open',     \n",
+        "            'bankcard_open', 'homeequity_open', 'mortgage1_open', 'mortgage2_open','mortgage3_open', \n",
+        "            'mortgage4_open', 'mortgage5_open', 'mortgage_open', 'mortgage_count',     \n",
+        "            'mean_mortgage_balance', 'mean_mortgage_limit', 'homeequity_count',      \n",
+        "            'mean_homeequity_balance', 'mean_homeequity_limit',     \n",
+        "            'mean_mortgage_trades', 'mean_homeequity_trades']"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "YgfP2--xdLjd",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "## Preprocess with each month data\n",
+        "apr_df0 = create_variables(apr_df,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "may_df0 = create_variables(may_df,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "jun_df0 = create_variables(jun_df,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "jul_df0 = create_variables(jul_df,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "aug_df0 = create_variables(aug_df,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "sep_df0 = create_variables(sep_df,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "F97x6kIUmieI",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Forming final dataset to fit the model**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "-tPjRO79h1Pv",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "from functools import reduce\n",
+        "dfs = [apr_df0, may_df0, jun_df0, jul_df0, aug_df0, sep_df0]\n",
+        "# df_final = reduce(lambda left, right: pd.merge(left,right, on = ['zip5', 'zip9_code'], how='outer'), dfs)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "HlWrMntqm20v",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "months = range(4,10)\n",
+        "df_final = pd.DataFrame()\n",
+        "for i in range(6):\n",
+        "  for col_name in dfs[i].columns:\n",
+        "    if \"zip\" not in col_name:\n",
+        "          df_final[col_name + \"_\"+ str(i+4)]  = dfs[i][col_name]\n",
+        "    else:\n",
+        "      if i == 0:\n",
+        "        df_final[col_name]  = dfs[i][col_name]"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "x83sg1fJwO9a",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# Merge monthly data with demo\n",
+        "final_demo_merge = df_final.merge(demo_df,\n",
+        "                              how='inner',\n",
+        "                              on= ['zip9_code', 'zip5'],\n",
+        "                              validate='one_to_one')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ErC-d9oBwWlL",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# feature engineering: adding indicator features\n",
+        "six_month_buy = final_demo_merge['mortgage_count_9'] - final_demo_merge['mortgage_count_4']\n",
+        "six_month_first_buy = final_demo_merge['mortgage_open_9'] - final_demo_merge['mortgage_open_4']\n",
+        "six_month_first_buy_ind = pd.DataFrame([1 if i > 0 else 0 for i in six_month_first_buy])\n",
+        "final_demo_merge['six_month_buy'] = six_month_buy\n",
+        "final_demo_merge['six_month_first_buy_ind'] = six_month_first_buy_ind"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "vjaSpA0A94TP",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# feature engineering: adding new response variables\n",
+        "num_zip9_in_zip5 = final_demo_merge.groupby(\"zip5\").agg({'zip9_code' : ['count']})"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "5S4iawvs-zDl",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "zip5_firstbuy = final_demo_merge.groupby(\"zip5\").agg({'first_homebuyers' : ['sum']})\n",
+        "zip5_firstbuy = pd.DataFrame(zip5_firstbuy).reset_index()\n",
+        "zip5_firstbuy.columns = ['zip5', 'zip5_firstbuy']\n",
+        "# zip5_firstbuy.head()"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "408e6Yfd_rkl",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "zip5_homebuy = final_demo_merge.groupby(\"zip5\").agg({'homebuyers' : ['sum']})\n",
+        "zip5_homebuy = pd.DataFrame(zip5_homebuy).reset_index()\n",
+        "zip5_homebuy.columns = ['zip5', 'zip5_homebuy']\n",
+        "# zip5_homebuy.head()"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "nEW5HticBYK5",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "## Merge with new response variables\n",
+        "final_demo_merge1 = final_demo_merge.merge(zip5_homebuy,\n",
+        "                              how='inner',\n",
+        "                              on= ['zip5'],\n",
+        "                              validate='many_to_one').merge(zip5_firstbuy,\n",
+        "                              how='inner',\n",
+        "                              on= ['zip5'],\n",
+        "                              validate='many_to_one')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "QCSArlcq9H6X",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "final_demo_merge1['homebuy_prop_zip9_in_zip5'] = final_demo_merge1['homebuyers'] / final_demo_merge1['zip5_homebuy']\n",
+        "final_demo_merge1['firstbuy_prop_zip9_in_zip5'] = final_demo_merge1['first_homebuyers'] / final_demo_merge1['zip5_firstbuy']"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "SWqkyN3CSQZm",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "final_demo_merge1.drop(['zip5_homebuy', 'zip5_firstbuy'], axis = 1, inplace=True)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "iaqIbc6vHQSq",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "## Final Dataset\n",
+        "final_demo_merge1 = final_demo_merge1.fillna(0)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "RQMSLd80qlma",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Train the Random Forest Regression model on proportions of homebuy and firstbuy for each zip9 area in a zip5 code**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "hM7Jb7WOVuwQ",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "y_names = ['homebuy_prop_zip9_in_zip5', 'firstbuy_prop_zip9_in_zip5']\n",
+        "\n",
+        "# buyer \n",
+        "y1 = final_demo_merge1[y_names[0]]\n",
+        "\n",
+        "# first \n",
+        "y2 = final_demo_merge1[y_names[1]]\n",
+        "\n",
+        "X = final_demo_merge1.drop(columns = y_names)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "01tv6sse3NbJ",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "c5c2628b-c31a-4e58-e282-621bbf4cdbe2"
+      },
+      "source": [
+        "## Train Random Forests Model with 72,000 instance to tune the hyperparameters\n",
+        "from sklearn.ensemble import RandomForestRegressor\n",
+        "from sklearn.model_selection import GroupShuffleSplit\n",
+        "\n",
+        "random_seed = 1030\n",
+        "gss = GroupShuffleSplit(n_splits=1, train_size=.8, random_state=random_seed)\n",
+        "gss.get_n_splits()\n",
+        "for train_idx, test_idx in gss.split(X, y1, X[\"zip5\"]):\n",
+        "  print(\"TRAIN:\", train_idx, \"TEST:\", test_idx)\n",
+        "\n",
+        "X_other = pd.DataFrame(X.iloc[train_idx, :][0:60000])\n",
+        "X_test =  pd.DataFrame(X.iloc[test_idx, :][0:10000])\n",
+        "y1_other = pd.DataFrame(np.array(y1.iloc[train_idx][0:60000]).reshape(-1, 1))\n",
+        "y2_other = pd.DataFrame(np.array(y2.iloc[train_idx][0:60000]).reshape(-1, 1))\n",
+        "y1_test = pd.DataFrame(np.array(y1.iloc[test_idx][0:10000]).reshape(-1, 1))\n",
+        "y2_test = pd.DataFrame(np.array(y2.iloc[test_idx][0:10000]).reshape(-1, 1))\n"
+      ],
+      "execution_count": 21,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "TRAIN: [     0      1      2 ... 756663 756664 756665] TEST: [   103    104    105 ... 756291 756292 756571]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "H6cLWNsa2JML",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "from sklearn.model_selection import GroupKFold\n",
+        "def ML_pipeline_stratify_kfold_rf(X_other, y1_other, y2_other, X_test, y1_test, y2_test, random_state,n_folds):\n",
+        " \n",
+        "    gkf = GroupKFold(n_splits=n_folds)\n",
+        "    gkf.get_n_splits(X_other, y1_other, X_other['zip5'])\n",
+        "    \n",
+        "    # You'll need to loop through the 5 options the CV fold can be selected\n",
+        "    for train_index, CV_index in gkf.split(X_other, y1_other, X_other['zip5']):\n",
+        "        X_train, X_CV = X_other.iloc[train_index], X_other.iloc[CV_index]\n",
+        "        y1_train, y1_CV = y1_other.iloc[train_index], y1_other.iloc[CV_index]\n",
+        "        y2_train, y2_CV = y2_other.iloc[train_index], y2_other.iloc[CV_index]\n",
+        "\n",
+        "        print(X_train.shape, X_CV.shape)\n",
+        "        print(y1_train.shape, y1_CV.shape)\n",
+        "        print(y2_train.shape, y2_CV.shape)\n",
+        "        # tune rf hyper-parameters, max_depth and min_samples_split\n",
+        "        data1 = []\n",
+        "        data2 = []\n",
+        "        # CV_scores1 = []\n",
+        "        # CV_scores2 = []\n",
+        "        rf1_test_scores = []\n",
+        "        rf2_test_scores = []\n",
+        "        for i in range(2,6):\n",
+        "            for j in range(2,6):\n",
+        "                clf1 = RandomForestRegressor(n_estimators= 100,max_depth=i, min_samples_split = j,random_state=random_state)\n",
+        "                clf2 = RandomForestRegressor(n_estimators= 100,max_depth=i, min_samples_split = j,random_state=random_state)\n",
+        "                clf1.fit(X_train,y1_train)\n",
+        "                clf2.fit(X_train,y2_train)\n",
+        "                data1.append([i,j, clf1, clf1.score(X_CV,y1_CV)])\n",
+        "                data2.append([i,j, clf2, clf2.score(X_CV,y1_CV)])\n",
+        "\n",
+        "    df1 = pd.DataFrame(data1, columns = ['max_depth', 'min_samples_split', 'model', 'cv_score'])\n",
+        "    df2 = pd.DataFrame(data2, columns = ['max_depth', 'min_samples_split', 'model', 'cv_score'])\n",
+        "    cv_best1 = max(df1['cv_score'])\n",
+        "    cv_best2 = max(df2['cv_score'])\n",
+        "    index1 = np.argmax(np.array(df1['cv_score']))\n",
+        "    index2 = np.argmax(np.array(df2['cv_score']))\n",
+        "    rf1_best_pair = (df1['max_depth'][index1], df1['min_samples_split'][index1])\n",
+        "    rf2_best_pair = (df2['max_depth'][index2], df2['min_samples_split'][index2])\n",
+        "    rf1 = df1['model'][index1]\n",
+        "    rf2 = df2['model'][index2]\n",
+        "    # CV_scores1.append(cv_best1)\n",
+        "    # CV_scores2.append(cv_best2)\n",
+        "    rf1_predicted = rf1.predict(X_test)\n",
+        "    rf2_predicted = rf2.predict(X_test)\n",
+        "    rf1_test_scores.append(clf1.score(X_test, y1_test))\n",
+        "    rf2_test_scores.append(clf2.score(X_test, y2_test))\n",
+        "        \n",
+        "    return rf1_test_scores, rf1_best_pair, y1_test, rf1_predicted, rf1, rf2_test_scores, rf2_best_pair, y2_test, rf2_predicted, rf2"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "7NRmScRX92uG",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 119
+        },
+        "outputId": "e07d150f-9edd-4006-e12d-5cd8a04c20ac"
+      },
+      "source": [
+        "from sklearn.metrics import accuracy_score, precision_score, recall_score, fbeta_score\n",
+        "random_state = 1030\n",
+        "n_folds = 2\n",
+        "rf1_test_scores, rf1_best_pair, y1_test, rf1_predicted, rf1, rf2_test_scores, rf2_best_pair, y2_test, rf2_predicted, rf2 = ML_pipeline_stratify_kfold_rf(X_other, y1_other, y2_other, X_test, y1_test, y2_test,random_state,n_folds)"
+      ],
+      "execution_count": 23,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "(30000, 213) (30000, 213)\n",
+            "(30000, 1) (30000, 1)\n",
+            "(30000, 1) (30000, 1)\n",
+            "(30000, 213) (30000, 213)\n",
+            "(30000, 1) (30000, 1)\n",
+            "(30000, 1) (30000, 1)\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "MEJD60aCYrcQ",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 153
+        },
+        "outputId": "d64ff60b-5d01-4a99-8f5f-7bb996e91d70"
+      },
+      "source": [
+        "from sklearn.metrics import mean_squared_error\n",
+        "from sklearn.metrics import r2_score\n",
+        "from sklearn.metrics import mean_absolute_error\n",
+        "\n",
+        "## Model performance\n",
+        "print(\"MAE of buying home:\", mean_absolute_error(y1_test, rf1_predicted))\n",
+        "print(\"MAE of buying first home:\", mean_absolute_error(y2_test, rf2_predicted))\n",
+        "print(\"R2 of buying home:\", r2_score(y1_test, rf1_predicted))\n",
+        "print(\"R2 of buying first home:\", r2_score(y2_test, rf2_predicted))\n",
+        "print(\"RMSE of buying home:\", np.sqrt(mean_squared_error(y1_test, rf1_predicted)))\n",
+        "print(\"RMSE of buying first home:\", np.sqrt(mean_squared_error(y2_test, rf2_predicted)))\n",
+        "print(\"best depth and min_split pair of rf1:\", rf1_best_pair, \"||test r-square:\", rf1_test_scores)\n",
+        "print(\"best depth and min_split pair of rf2:\", rf2_best_pair, \"||test r-square:\", rf2_test_scores)"
+      ],
+      "execution_count": 24,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "MAE of buying home: 0.009140802173638964\n",
+            "MAE of buying first home: 0.006537338698637083\n",
+            "R2 of buying home: 0.6127258084475449\n",
+            "R2 of buying first home: 0.6999396412000312\n",
+            "RMSE of buying home: 0.059101670231173145\n",
+            "RMSE of buying first home: 0.04955145063684216\n",
+            "best depth and min_split pair of rf1: (5, 5) ||test r-square: [0.6127258084475449]\n",
+            "best depth and min_split pair of rf2: (2, 2) ||test r-square: [0.7040322353267381]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "FYEGdaIqZxKf",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 136
+        },
+        "outputId": "05ea7be6-7e6c-4924-86ba-ae7956e61802"
+      },
+      "source": [
+        "rf1 = RandomForestRegressor(bootstrap=True, ccp_alpha=0.0, criterion='mse',\n",
+        "                      max_depth=5, max_features='auto', max_leaf_nodes=None,\n",
+        "                      max_samples=None, min_impurity_decrease=0.0,\n",
+        "                      min_impurity_split=None, min_samples_leaf=1,\n",
+        "                      min_samples_split=5, min_weight_fraction_leaf=0.0,\n",
+        "                      n_estimators=100, n_jobs=None, oob_score=False,\n",
+        "                      random_state=1030, verbose=0, warm_start=False)"
+      ],
+      "execution_count": 29,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "RandomForestRegressor(bootstrap=True, ccp_alpha=0.0, criterion='mse',\n",
+              "                      max_depth=5, max_features='auto', max_leaf_nodes=None,\n",
+              "                      max_samples=None, min_impurity_decrease=0.0,\n",
+              "                      min_impurity_split=None, min_samples_leaf=1,\n",
+              "                      min_samples_split=5, min_weight_fraction_leaf=0.0,\n",
+              "                      n_estimators=100, n_jobs=None, oob_score=False,\n",
+              "                      random_state=1030, verbose=0, warm_start=False)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 29
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "PsL1pMZLZyO-",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 136
+        },
+        "outputId": "0b31ca80-cbf0-4283-9a7b-26dd4e78b993"
+      },
+      "source": [
+        "rf2 = RandomForestRegressor(bootstrap=True, ccp_alpha=0.0, criterion='mse',\n",
+        "                      max_depth=2, max_features='auto', max_leaf_nodes=None,\n",
+        "                      max_samples=None, min_impurity_decrease=0.0,\n",
+        "                      min_impurity_split=None, min_samples_leaf=1,\n",
+        "                      min_samples_split=2, min_weight_fraction_leaf=0.0,\n",
+        "                      n_estimators=100, n_jobs=None, oob_score=False,\n",
+        "                      random_state=1030, verbose=0, warm_start=False)"
+      ],
+      "execution_count": 30,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "RandomForestRegressor(bootstrap=True, ccp_alpha=0.0, criterion='mse',\n",
+              "                      max_depth=2, max_features='auto', max_leaf_nodes=None,\n",
+              "                      max_samples=None, min_impurity_decrease=0.0,\n",
+              "                      min_impurity_split=None, min_samples_leaf=1,\n",
+              "                      min_samples_split=2, min_weight_fraction_leaf=0.0,\n",
+              "                      n_estimators=100, n_jobs=None, oob_score=False,\n",
+              "                      random_state=1030, verbose=0, warm_start=False)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 30
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "aNfQCl6brlau",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Re-train the best tuned RF model on 750,000 instances**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "nb8GzqeLWJA2",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "a497515e-6800-4a9e-c019-16b0e35902f2"
+      },
+      "source": [
+        "from sklearn.model_selection import GroupKFold\n",
+        "from sklearn.model_selection import GroupShuffleSplit\n",
+        "random_seed = 1030\n",
+        "gss = GroupShuffleSplit(n_splits=1, train_size=.8, random_state=random_seed)\n",
+        "gss.get_n_splits()\n",
+        "for train_idx, test_idx in gss.split(X, y1, X[\"zip5\"]):\n",
+        "  print(\"TRAIN:\", train_idx, \"TEST:\", test_idx)\n",
+        "\n",
+        "X_train = X.iloc[train_idx,:]\n",
+        "X_test =  X.iloc[test_idx, :]\n",
+        "y1_train = pd.DataFrame(np.array(y1.iloc[train_idx]).reshape(-1, 1))\n",
+        "y2_train = pd.DataFrame(np.array(y2.iloc[train_idx]).reshape(-1, 1))\n",
+        "y1_test = pd.DataFrame(np.array(y1.iloc[test_idx]).reshape(-1, 1))\n",
+        "y2_test = pd.DataFrame(np.array(y2.iloc[test_idx]).reshape(-1, 1))"
+      ],
+      "execution_count": 78,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "TRAIN: [     0      1      2 ... 756663 756664 756665] TEST: [   123    124    187 ... 756562 756563 756624]\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ABVGQdmXibPl",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "print(X_train.shape, X_test.shape)\n",
+        "print(y1_train.shape, y1_test.shape)\n",
+        "print(y2_train.shape, y2_test.shape)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "48FEmeRIWPrC",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 136
+        },
+        "outputId": "d8848735-c2ea-4c67-f245-46a95388baba"
+      },
+      "source": [
+        "rf1.fit(X_train, y1_train)\n",
+        "rf2.fit(X_train, y2_train)"
+      ],
+      "execution_count": 27,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "RandomForestRegressor(bootstrap=True, ccp_alpha=0.0, criterion='mse',\n",
+              "                      max_depth=2, max_features='auto', max_leaf_nodes=None,\n",
+              "                      max_samples=None, min_impurity_decrease=0.0,\n",
+              "                      min_impurity_split=None, min_samples_leaf=1,\n",
+              "                      min_samples_split=2, min_weight_fraction_leaf=0.0,\n",
+              "                      n_estimators=100, n_jobs=None, oob_score=False,\n",
+              "                      random_state=1030, verbose=0, warm_start=False)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 27
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "fXZOscC8oyRb",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "y1_predict = rf1.predict(X_test)\n",
+        "y2_predict = rf2.predict(X_test)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "E8vi5KR5CbBu",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "zip5 = []\n",
+        "zip9 = []\n",
+        "for i in X_test['zip5']:\n",
+        "  zip5.append(str(i))\n",
+        "\n",
+        "for i in X_test['zip9_code']:\n",
+        "  zip9.append(str(i))\n",
+        "\n",
+        "result_rf = pd.DataFrame()\n",
+        "\n",
+        "result_rf['proportion of buyers'] = y1_predict\n",
+        "result_rf['proportion of first time buyers'] = y2_predict\n",
+        "result_rf['zip5'] = pd.DataFrame(zip5)\n",
+        "result_rf['zip9'] = pd.DataFrame(zip9)\n",
+        "result_rf.to_csv('rf.csv')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "OJxElhdwWXwb",
+        "colab_type": "code",
+        "outputId": "118a7942-217d-434d-e692-f96b4ba32c76",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 119
+        }
+      },
+      "source": [
+        "print(\"MAE of buying home:\", mean_absolute_error(y1_test, y1_predict))\n",
+        "print(\"MAE of buying first home:\", mean_absolute_error(y2_test, y2_predict))\n",
+        "print(\"R2 of buying home:\", r2_score(y1_test, y1_predict))\n",
+        "print(\"R2 of buying first home:\", r2_score(y2_test, y2_predict))\n",
+        "print(\"RMSE of buying home:\", np.sqrt(mean_squared_error(y1_test, y1_predict)))\n",
+        "print(\"RMSE of buying first home:\", np.sqrt(mean_squared_error(y2_test, y2_predict)))"
+      ],
+      "execution_count": 32,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "MAE of buying home: 0.006984064547492014\n",
+            "MAE of buying first home: 0.005113626088252926\n",
+            "R2 of buying home: 0.6204266993396539\n",
+            "R2 of buying first home: 0.6988230317650438\n",
+            "RMSE of buying home: 0.0505489333585644\n",
+            "RMSE of buying first home: 0.04381113028240972\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "il3RPaFm9AHI",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "def loss_function_2(y_pred, y_labels):\n",
+        "    size = y_pred.size\n",
+        "    differences = y_pred - y_labels\n",
+        "    \n",
+        "    # If the prediction is smaller than the label, then we have underpredicted, scale this up\n",
+        "    under = np.where(differences < 0, differences, 0)\n",
+        "    over = np.where(differences >= 0, differences, 0)\n",
+        "    under_square_scaled = under*under*10\n",
+        "    over_square = over*over\n",
+        "    square_sum = np.sum(under_square_scaled) + np.sum(over_square)\n",
+        "    \n",
+        "    return square_sum/size"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "n6asAxdH-liv",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 51
+        },
+        "outputId": "54cbfa58-031a-4585-b3af-446383f35d2b"
+      },
+      "source": [
+        "## Weight loss for RF model\n",
+        "y1_wl_rf = loss_function_2(pd.DataFrame(np.array(y1_predict).reshape(-1, 1)), y1_test)\n",
+        "y2_wl_rf = loss_function_2(pd.DataFrame(np.array(y2_predict).reshape(-1, 1)), y2_test)\n",
+        "print(y1_wl_rf, y2_wl_rf)\n",
+        "print((y1_wl_rf+y2_wl_rf)/2)"
+      ],
+      "execution_count": 34,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "0.01915601924618983 0.013211098415803842\n",
+            "0.016183558830996835\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "mU0kLvddYeu7",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# classified_data = pd.DataFrame()\n",
+        "\n",
+        "# classified_data['pred_1'] = (y1_predict != 0) + 0\n",
+        "# classified_data['pred_2'] = (y2_predict != 0) + 0\n",
+        "# classified_data['true_1'] = (y1_test != 0) + 0\n",
+        "# classified_data['true_2'] = (y2_test != 0) + 0\n",
+        "# classified_data['pred_1_regr'] = y1_predict\n",
+        "# classified_data['pred_2_regr'] = y2_predict\n",
+        "# classified_data['true_1_regr'] = y1_test\n",
+        "# classified_data['true_2_regr'] = y2_test"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "fVZN3nmcq7Ca",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Train the XGBoost Regression model on proportions of homebuy and firstbuy for each zip9 area in a zip5 code**"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "p4uFbybPstlk",
+        "colab_type": "text"
+      },
+      "source": [
+        "**We have tuned the hyperparameters for our XGBoost model on the other notebook with grid search gourpfold k-folder cross vaildation, use scoring = 'neg_mean_squared_error'. It turned out that the best hyperparapeter pairs are {eta:0.01, gamma:0, max_depth:2}. So we are going to use this set to fit 750,000 instances.**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "qjKNDZ2Ztrv9",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "import xgboost as xgb\n",
+        "xgbr1 = xgb.XGBRegressor(base_score=0.5, booster='gbtree', colsample_bylevel=1,\n",
+        "             colsample_bynode=1, colsample_bytree=1, eta=0.001, gamma=0,\n",
+        "             importance_type='gain', learning_rate=0.1, max_delta_step=0,\n",
+        "             max_depth=2, min_child_weight=1, missing=None, n_estimators=100,\n",
+        "             n_jobs= -1, nthread=None, objective='reg:linear', random_state=1030,\n",
+        "             reg_alpha=0, reg_lambda=1, scale_pos_weight=1, seed=None,\n",
+        "             silent=None, subsample=1, verbosity=1)\n",
+        "\n",
+        "xgbr2 = xgb.XGBRegressor(base_score=0.5, booster='gbtree', colsample_bylevel=1,\n",
+        "             colsample_bynode=1, colsample_bytree=1, eta=0.001, gamma=0.001,\n",
+        "             importance_type='gain', learning_rate=0.1, max_delta_step=0,\n",
+        "             max_depth=2, min_child_weight=1, missing=None, n_estimators=166,\n",
+        "             n_jobs= -1, nthread=None, objective='reg:linear', random_state=1030,\n",
+        "             reg_alpha=0, reg_lambda=1, scale_pos_weight=1, seed=None,\n",
+        "             silent=None, subsample=1, verbosity=1)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "g_RFF4KkvePU",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 170
+        },
+        "outputId": "55734447-8531-4f8e-8244-1337235fec05"
+      },
+      "source": [
+        "x_train_xgbr = X_train.drop('zip5',axis=1)\n",
+        "xgbr1.fit(x_train_xgbr, y1_train)\n",
+        "xgbr2.fit(x_train_xgbr, y2_train)"
+      ],
+      "execution_count": 80,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "[16:29:18] WARNING: /workspace/src/objective/regression_obj.cu:152: reg:linear is now deprecated in favor of reg:squarederror.\n",
+            "[16:32:12] WARNING: /workspace/src/objective/regression_obj.cu:152: reg:linear is now deprecated in favor of reg:squarederror.\n"
+          ],
+          "name": "stdout"
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "XGBRegressor(base_score=0.5, booster='gbtree', colsample_bylevel=1,\n",
+              "             colsample_bynode=1, colsample_bytree=1, eta=0.001, gamma=0.001,\n",
+              "             importance_type='gain', learning_rate=0.1, max_delta_step=0,\n",
+              "             max_depth=2, min_child_weight=1, missing=None, n_estimators=166,\n",
+              "             n_jobs=-1, nthread=None, objective='reg:linear', random_state=1030,\n",
+              "             reg_alpha=0, reg_lambda=1, scale_pos_weight=1, seed=None,\n",
+              "             silent=None, subsample=1, verbosity=1)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 80
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "cUH7U4yl49ni",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "import pickle\n",
+        "xgb_1 = xgbr1\n",
+        "xgb_2 = xgbr1\n",
+        "filename1 = root_path + '/xgb1.sav'\n",
+        "filename2 = root_path + '/xgb2.sav'\n",
+        "pickle.dump(xgb_1, open(filename1, 'wb'))\n",
+        "pickle.dump(xgb_2, open(filename2, 'wb'))"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "oQPDz2HV5YlF",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# xgb1 = pickle.load(open(filename1, \"rb\"))\n",
+        "# xgb2 = pickle.load(open(filename2, \"rb\"))"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "XzFz9ixOwvwE",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "x_test_xgbr = X_test.drop('zip5',axis=1)\n",
+        "\n",
+        "y1_predict_xgb = xgbr1.predict(x_test_xgbr)\n",
+        "y2_predict_xgb = xgbr2.predict(x_test_xgbr)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Jjw48pFi0IjL",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 119
+        },
+        "outputId": "310f77aa-00d5-4806-fefd-0d907ce5dc0f"
+      },
+      "source": [
+        "print(\"MAE of buying home:\", mean_absolute_error(y1_test, y1_predict_xgb))\n",
+        "print(\"MAE of buying first home:\", mean_absolute_error(y2_test, y2_predict_xgb))\n",
+        "print(\"R2 of buying home:\", r2_score(y1_test, y1_predict_xgb))\n",
+        "print(\"R2 of buying first home:\", r2_score(y2_test, y2_predict_xgb))\n",
+        "print(\"RMSE of buying home:\", np.sqrt(mean_squared_error(y1_test, y1_predict_xgb)))\n",
+        "print(\"RMSE of buying first home:\", np.sqrt(mean_squared_error(y2_test, y2_predict_xgb)))"
+      ],
+      "execution_count": 38,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "MAE of buying home: 0.007280715861502897\n",
+            "MAE of buying first home: 0.005214192609207299\n",
+            "R2 of buying home: 0.6171824889369386\n",
+            "R2 of buying first home: 0.7100294408258285\n",
+            "RMSE of buying home: 0.050764494432524766\n",
+            "RMSE of buying first home: 0.04298832584459643\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "NSxQGJ3r6UIM",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 51
+        },
+        "outputId": "567307bd-1a53-467a-aee5-77cdb314a405"
+      },
+      "source": [
+        "## Weight loss for XGB Model\n",
+        "y1_wl_xgb = loss_function_2(pd.DataFrame(np.array(y1_predict_xgb).reshape(-1, 1)), y1_test)\n",
+        "y2_wl_xgb = loss_function_2(pd.DataFrame(np.array(y2_predict_xgb).reshape(-1, 1)), y2_test)\n",
+        "print(y1_wl_xgb, y2_wl_xgb)\n",
+        "print((y1_wl_xgb+y2_wl_xgb)/2)"
+      ],
+      "execution_count": 39,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "0.019434059508015664 0.012688221921094455\n",
+            "0.01606114071455506\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "aGfdjzS6_rCZ",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "result_xgb = pd.DataFrame()\n",
+        "\n",
+        "result_xgb['proportion of buyers'] = y1_predict_xgb\n",
+        "result_xgb['proportion of first time buyers'] = y2_predict_xgb\n",
+        "result_xgb['zip5'] = pd.DataFrame(zip5)\n",
+        "result_xgb['zip9'] = pd.DataFrame(zip9)\n",
+        "result_xgb.to_csv('xgb.csv')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "wNS9YDfhiNSM",
+        "colab_type": "text"
+      },
+      "source": [
+        "**Test set prediction**"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "veHMTKFdiSzR",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "root_path = '/content/'\n",
+        "#/content/zip9_coded_201904_wh.csv\n",
+        "apr_df11 = pd.read_csv(root_path + \"zip9_coded_201904_wh.csv\")\n",
+        "may_df11 = pd.read_csv(root_path + \"zip9_coded_201905_wh.csv\")\n",
+        "jun_df11 = pd.read_csv(root_path + \"zip9_coded_201906_wh.csv\")\n",
+        "jul_df11 = pd.read_csv(root_path + \"zip9_coded_201907_wh.csv\")\n",
+        "aug_df11 = pd.read_csv(root_path + \"zip9_coded_201908_wh.csv\")\n",
+        "sep_df11 = pd.read_csv(root_path + \"zip9_coded_201909_wh.csv\")\n",
+        "demo_df1 = pd.read_csv(root_path + \"zip9_demographics_unlabeled_wh_test.csv\")"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "8wUxSd2hi04M",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "apr_df1 = create_variables(apr_df11,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "may_df1 = create_variables(may_df11,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "jun_df1 = create_variables(jun_df11,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "jul_df1 = create_variables(jul_df11,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "aug_df1 = create_variables(aug_df11,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)\n",
+        "sep_df1 = create_variables(sep_df11,column_list_1,'mortgage_count',column_list_2,'homeequity_count', all_column)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "JUPEQPYnlrJN",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "122b6261-fa22-4f93-9f53-e48bc9a1f831"
+      },
+      "source": [
+        "jun_df1.shape"
+      ],
+      "execution_count": 86,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "(667418, 36)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 86
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "bpYgGQ8ijdum",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "dfs1 = [apr_df1, may_df1, jun_df1, jul_df1, aug_df1, sep_df1]"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "uuUHayqNjnE_",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "months = range(4,10)\n",
+        "df_final1 = pd.DataFrame()\n",
+        "for i in range(6):\n",
+        "  for col_name in dfs1[i].columns:\n",
+        "    if \"zip\" not in col_name:\n",
+        "          df_final1[col_name + \"_\"+ str(i+4)]  = dfs1[i][col_name]\n",
+        "    else:\n",
+        "      if i == 0:\n",
+        "        df_final1[col_name]  = dfs1[i][col_name]"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ea7uy7jUmEO6",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "64b13e78-1339-49fd-cf83-3d7d2752aafa"
+      },
+      "source": [
+        "df_final1.shape"
+      ],
+      "execution_count": 26,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "(667418, 206)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 26
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "gws61szsjzBC",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "# Merge monthly data with demo\n",
+        "final_demo_merge2 = df_final1.merge(demo_df1,\n",
+        "                              how='inner',\n",
+        "                              on= ['zip9_code'],\n",
+        "                              validate='one_to_one')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "v3IK3rOxusnp",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "b941f4e4-0722-418e-8888-7b17f3d22a11"
+      },
+      "source": [
+        "demo_df1['zip9_code'].shape"
+      ],
+      "execution_count": 90,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "(667418,)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 90
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "kQLIYZgUoJSl",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "agg = pd.read_csv(root_path + \"agg.csv\")\n",
+        "agg.columns = ['Unnamed: 0', 'zip9_code', 'homebuyers', 'first_homebuyers']\n",
+        "agg.drop('Unnamed: 0', axis = 1, inplace = True)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "69D9OD4FmG_u",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "final_demo_merge2 = final_demo_merge2.merge(agg,\n",
+        "                              how='inner',\n",
+        "                              on= ['zip9_code'],\n",
+        "                              validate='one_to_one')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "hBx7xSWPo5ui",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "f766cadc-3619-48cd-ea22-ff05e1620007"
+      },
+      "source": [
+        "final_demo_merge2.shape"
+      ],
+      "execution_count": 93,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "(667418, 211)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 93
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "4dGcQYj4kKs7",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "six_month_buy1 = final_demo_merge2['mortgage_count_9'] - final_demo_merge2['mortgage_count_4']\n",
+        "six_month_first_buy1 = final_demo_merge2['mortgage_open_9'] - final_demo_merge2['mortgage_open_4']\n",
+        "six_month_first_buy_ind1 = pd.DataFrame([1 if i > 0 else 0 for i in six_month_first_buy1])\n",
+        "final_demo_merge2['six_month_buy'] = six_month_buy1\n",
+        "final_demo_merge2['six_month_first_buy_ind'] = six_month_first_buy_ind1"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "0z93c89JmM5j",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "bbc5664d-67e8-4b5f-9302-42e7923e2f7b"
+      },
+      "source": [
+        "final_demo_merge2.shape"
+      ],
+      "execution_count": 95,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "(667418, 213)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 95
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Ek0-55LPmlnD",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 187
+        },
+        "outputId": "6d0851b2-73a3-4007-91f5-afb2e2032fcb"
+      },
+      "source": [
+        "X = final_demo_merge2.drop('zip5', axis = 1)\n",
+        "X.columns"
+      ],
+      "execution_count": 96,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "Index(['zip9_code', 'bankcard_limit_4', 'bankcard_balance_4',\n",
+              "       'bankcard_trades_4', 'bankcard_util_4', 'total_revolving_limit_4',\n",
+              "       'total_revolving_balance_4', 'total_revolving_trades_4',\n",
+              "       'total_revolving_util_4', 'total_mortgage_limit_4',\n",
+              "       ...\n",
+              "       'mean_homeequity_limit_9', 'mean_mortgage_trades_9',\n",
+              "       'mean_homeequity_trades_9', 'age', 'household_count', 'person_count',\n",
+              "       'homebuyers', 'first_homebuyers', 'six_month_buy',\n",
+              "       'six_month_first_buy_ind'],\n",
+              "      dtype='object', length=212)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 96
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "xiQ7KWJ4nVvt",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "y_te1 = xgbr1.predict(X)\n",
+        "y_te2 = xgbr2.predict(X)"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "5Ihg8kvSsFY_",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "#result = pd.read_csv(root_path+ 'result.csv')\n",
+        "zip9 = []\n",
+        "\n",
+        "for i in X['zip9_code']:\n",
+        "  zip9.append(str(i))"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "OcAbyxWonhRN",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "result_xgb = pd.DataFrame()\n",
+        "\n",
+        "result_xgb['proportion of buyers'] = y_te1\n",
+        "result_xgb['proportion of first time buyers'] = y_te2\n",
+        "\n",
+        "result_xgb['zip9'] = pd.DataFrame(zip9)\n",
+        "result_xgb.to_csv('result.csv')"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "8jlgfwBXs2VU",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 204
+        },
+        "outputId": "7284d803-7d68-4b18-95cb-70ff56a0ef2f"
+      },
+      "source": [
+        "X['zip9_code'].head(10)"
+      ],
+      "execution_count": 100,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "0    19 \n",
+              "1    26 \n",
+              "2    34 \n",
+              "3    41 \n",
+              "4    42 \n",
+              "5    70 \n",
+              "6    84 \n",
+              "7    86 \n",
+              "8    103\n",
+              "9    114\n",
+              "Name: zip9_code, dtype: int64"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 100
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "z_xoKvdsuSSK",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 204
+        },
+        "outputId": "813cf577-a2cd-40ee-b439-2affd7821efe"
+      },
+      "source": [
+        "result.head()"
+      ],
+      "execution_count": 45,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>Unnamed: 0</th>\n",
+              "      <th>proportion of buyers</th>\n",
+              "      <th>proportion of first time buyers</th>\n",
+              "      <th>zip5</th>\n",
+              "      <th>zip9</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>0</td>\n",
+              "      <td>0.563365</td>\n",
+              "      <td>0.657487</td>\n",
+              "      <td>1003.0</td>\n",
+              "      <td>5580103.0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1</td>\n",
+              "      <td>0.564880</td>\n",
+              "      <td>0.648038</td>\n",
+              "      <td>1010.0</td>\n",
+              "      <td>651647.0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>2</td>\n",
+              "      <td>0.000347</td>\n",
+              "      <td>0.000076</td>\n",
+              "      <td>1010.0</td>\n",
+              "      <td>741335.0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>3</td>\n",
+              "      <td>0.000632</td>\n",
+              "      <td>0.000194</td>\n",
+              "      <td>1010.0</td>\n",
+              "      <td>1027752.0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>4</td>\n",
+              "      <td>0.501050</td>\n",
+              "      <td>0.540581</td>\n",
+              "      <td>1010.0</td>\n",
+              "      <td>1586835.0</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "   Unnamed: 0  proportion of buyers  proportion of first time buyers    zip5  \\\n",
+              "0  0           0.563365              0.657487                         1003.0   \n",
+              "1  1           0.564880              0.648038                         1010.0   \n",
+              "2  2           0.000347              0.000076                         1010.0   \n",
+              "3  3           0.000632              0.000194                         1010.0   \n",
+              "4  4           0.501050              0.540581                         1010.0   \n",
+              "\n",
+              "        zip9  \n",
+              "0  5580103.0  \n",
+              "1  651647.0   \n",
+              "2  741335.0   \n",
+              "3  1027752.0  \n",
+              "4  1586835.0  "
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 45
+        }
+      ]
+    }
+  ]
+}
